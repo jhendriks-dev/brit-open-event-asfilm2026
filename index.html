@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AS Film Studies - Open Event Film Board</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inconsolata -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    // Global fallback poster generator for missing or failed images
+    window.generateFallbackPosterSvg = function(title) {
+      var shortTitle = (title || 'Film').substring(0, 22);
+      var safeTitle = shortTitle.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450">' +
+        '<rect width="300" height="450" fill="#090d16"/>' +
+        '<rect x="12" y="12" width="276" height="426" fill="none" stroke="#f59e0b" stroke-width="2" rx="12" stroke-dasharray="6 6"/>' +
+        '<text x="150" y="190" font-family="sans-serif" font-size="48" fill="#f59e0b" text-anchor="middle">🎬</text>' +
+        '<text x="150" y="250" font-family="Inconsolata, monospace" font-size="16" font-weight="bold" fill="#f8fafc" text-anchor="middle">' + safeTitle + '</text>' +
+        '<text x="150" y="280" font-family="Inconsolata, monospace" font-size="12" fill="#64748b" text-anchor="middle">AS Film Studies</text>' +
+      '</svg>';
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    };
+
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inconsolata', 'monospace'],
+            display: ['Inconsolata', 'monospace'],
+            mono: ['Inconsolata', 'monospace'],
+          },
+          colors: {
+            gold: '#f59e0b',
+            filmDark: '#070a12',
+            cardBg: '#0f172a'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070a12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 5px;
+      border: 2px solid #070a12;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Noticeboard Grid Animation */
+    .film-card {
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease;
+    }
+    .film-card:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 20px 30px -10px rgba(245, 158, 11, 0.25);
+    }
+
+    .pulse-glow {
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-filmDark text-slate-100 flex flex-col font-sans antialiased overflow-x-hidden">
+
+  <!-- Top Navigation & Banner Header -->
+  <header class="bg-slate-900/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md px-4 sm:px-8 py-4 text-center">
+    <div class="max-w-[1920px] mx-auto space-y-1">
+      <h1 class="text-2xl sm:text-4xl font-black tracking-widest text-amber-400 uppercase font-display">
+        SHARE YOUR FAVOURITE FILMS WITH US
+      </h1>
+      <p class="text-sm sm:text-base font-medium text-slate-300">
+        Type on the iPad below or head to <span class="text-amber-400 font-bold underline decoration-amber-500/50">tinyurl.com/asfilm2026</span> on your phone
+      </p>
+    </div>
+  </header>
+
+  <!-- Main Search / Add Film Bar -->
+  <div class="bg-slate-900/70 border-b border-slate-800/60 backdrop-blur py-4 px-4 sm:px-8 sticky top-[65px] z-30 shadow-xl">
+    <div class="max-w-[1920px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
+      
+      <!-- Search & Add Input Box -->
+      <form id="addFilmForm" onsubmit="handleFormSubmit(event)" class="w-full lg:max-w-3xl relative">
+        <div class="relative flex items-center">
+          <div class="absolute left-4 text-amber-400 text-lg pointer-events-none">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </div>
+          
+          <input type="text" id="filmTitleInput" required autocomplete="off"
+            placeholder="Type your favourite film title here (e.g. Inception, Spirited Away, Pulp Fiction)..." 
+            oninput="debouncedTmdbSearch()"
+            class="w-full bg-slate-950 border-2 border-slate-800 focus:border-amber-500 rounded-2xl pl-12 pr-32 py-3.5 text-sm sm:text-base font-medium text-slate-100 placeholder-slate-500 focus:outline-none transition shadow-inner">
+
+          <!-- Submit Button -->
+          <button type="submit" id="submitBtn" 
+            class="absolute right-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl transition transform active:scale-95 shadow-md flex items-center gap-2">
+            <i class="fa-solid fa-plus text-xs"></i>
+            <span>Add Film</span>
+          </button>
+        </div>
+
+        <!-- TMDB Live Preview Card Overlay -->
+        <div id="tmdbPreviewModal" class="hidden absolute left-0 right-0 top-full mt-2 bg-slate-900 border-2 border-amber-500/50 rounded-2xl p-3 shadow-2xl z-50 backdrop-blur-xl">
+          <div class="flex items-center gap-4">
+            <img id="tmdbPreviewPoster" src="" alt="Poster" 
+              onerror="this.onerror=null; this.src=window.generateFallbackPosterSvg('Film');"
+              class="w-12 h-18 object-cover rounded-lg bg-slate-950 shrink-0 border border-slate-800">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                  TMDB Match
+                </span>
+                <span id="tmdbPreviewYear" class="text-xs text-slate-400"></span>
+              </div>
+              <h4 id="tmdbPreviewTitle" class="text-sm font-bold text-slate-100 truncate mt-0.5"></h4>
+              <p id="tmdbPreviewOverview" class="text-xs text-slate-400 line-clamp-1 mt-0.5"></p>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl hover:bg-amber-400 shrink-0">
+              Confirm & Pin
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Sorting Controls & Search Filter -->
+      <div class="w-full lg:w-auto flex items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
+        
+        <!-- Quick Filter Input -->
+        <div class="relative flex-1 sm:flex-none sm:w-56">
+          <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+          <input type="text" id="filterInput" oninput="renderFilms()" placeholder="Filter board..." 
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+        </div>
+
+        <!-- Sort Option Switcher -->
+        <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
+          <button id="sortPopularBtn" onclick="setSortMode('popular')" 
+            class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-amber-500 text-slate-950 shadow">
+            <i class="fa-solid fa-fire text-xs"></i>
+            <span>Most Popular</span>
+          </button>
+          <button id="sortRecentBtn" onclick="setSortMode('recent')" 
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-100 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-clock text-xs"></i>
+            <span>Most Recent</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Noticeboard Area (Fills Widescreen) -->
+  <main class="flex-1 max-w-[1920px] w-full mx-auto p-4 sm:p-8">
+    
+    <!-- Toast Notification Banner -->
+    <div id="toastNotification" class="hidden max-w-md mx-auto mb-6 p-3 bg-emerald-950/90 border border-emerald-500/40 rounded-xl text-emerald-200 text-xs font-semibold flex items-center justify-between gap-3 shadow-xl">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span id="toastText">Film added to noticeboard!</span>
+      </div>
+      <button onclick="hideToast()" class="text-emerald-400 hover:text-emerald-100">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Empty State Box -->
+    <div id="emptyNoticeboard" class="hidden py-24 text-center max-w-lg mx-auto space-y-4">
+      <div class="w-20 h-20 mx-auto rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-500 text-3xl">
+        <i class="fa-solid fa-film"></i>
+      </div>
+      <h3 class="text-xl font-bold font-display tracking-wide text-slate-200">The Noticeboard is Empty</h3>
+      <p class="text-sm text-slate-400">Be the first to share your favourite film using the search bar at the top!</p>
+    </div>
+
+    <!-- Widescreen Noticeboard Film Posters Grid -->
+    <div id="filmsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-4 sm:gap-6 items-start">
+      <!-- Film Poster Cards populated dynamically via JS -->
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+    <div>
+      <span class="font-bold text-slate-400">AS Film Studies</span> Open Event Interactive Board
+    </div>
+    <div class="text-[11px] text-slate-600">
+      Data powered by TMDB API • Multi-device live vote sync
+    </div>
+  </footer>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Application state
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'as-film-studies-open-event';
+    let films = [];
+    let sortMode = 'popular'; // 'popular' | 'recent'
+    let userVotedSet = new Set(JSON.parse(localStorage.getItem('open_event_voted_ids') || '[]'));
+    let db = null;
+    let auth = null;
+    let isFirebaseReady = false;
+    let debounceTimer = null;
+    let currentTmdbMatch = null;
+
+    // TMDB Lookup API Key
+    const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2192313';
+
+    // Search TMDB API
+    async function fetchTmdbMovie(query) {
+      if (!query || query.trim().length < 2) return null;
+      try {
+        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&include_adult=false`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          const m = data.results[0];
+          const year = m.release_date ? m.release_date.substring(0, 4) : '';
+          return {
+            title: m.title,
+            year: year,
+            tmdbId: m.id,
+            overview: m.overview || '',
+            posterUrl: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : null
+          };
+        }
+      } catch (e) {
+        console.warn("TMDB fetch error:", e);
+      }
+      return null;
+    }
+
+    // Debounced Search Input Handler
+    window.debouncedTmdbSearch = () => {
+      clearTimeout(debounceTimer);
+      const val = document.getElementById('filmTitleInput').value.trim();
+      const modal = document.getElementById('tmdbPreviewModal');
+
+      if (val.length < 2) {
+        modal.classList.add('hidden');
+        currentTmdbMatch = null;
+        return;
+      }
+
+      debounceTimer = setTimeout(async () => {
+        const match = await fetchTmdbMovie(val);
+        if (match) {
+          currentTmdbMatch = match;
+          document.getElementById('tmdbPreviewTitle').innerText = match.title;
+          document.getElementById('tmdbPreviewYear').innerText = match.year ? `(${match.year})` : '';
+          document.getElementById('tmdbPreviewOverview').innerText = match.overview;
+          
+          const img = document.getElementById('tmdbPreviewPoster');
+          img.src = match.posterUrl || window.generateFallbackPosterSvg(match.title);
+          
+          modal.classList.remove('hidden');
+        } else {
+          modal.classList.add('hidden');
+          currentTmdbMatch = null;
+        }
+      }, 300);
+    };
+
+    // Form Submission (Add or Vote)
+    window.handleFormSubmit = async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('filmTitleInput');
+      const rawText = input.value.trim();
+      if (!rawText) return;
+
+      document.getElementById('tmdbPreviewModal').classList.add('hidden');
+
+      let matchData = currentTmdbMatch;
+      if (!matchData) {
+        matchData = await fetchTmdbMovie(rawText) || {
+          title: rawText,
+          year: '',
+          tmdbId: null,
+          posterUrl: null
+        };
+      }
+
+      // Check if film already exists on board
+      const existing = films.find(f => (matchData.tmdbId && f.tmdbId === matchData.tmdbId) || f.title.toLowerCase() === matchData.title.toLowerCase());
+
+      if (existing) {
+        // Vote for existing film
+        await window.handleVote(existing.id);
+        showToast(`Added a +1 vote for "${existing.title}"!`);
+        input.value = '';
+        currentTmdbMatch = null;
+        return;
+      }
+
+      // Create new film document
+      const newFilm = {
+        title: matchData.title,
+        year: matchData.year || '',
+        tmdbId: matchData.tmdbId || null,
+        posterUrl: matchData.posterUrl || null,
+        votes: 1,
+        timestamp: Date.now()
+      };
+
+      if (isFirebaseReady && db) {
+        try {
+          const col = collection(db, 'artifacts', appId, 'public', 'data', 'open_event_films');
+          const docRef = await addDoc(col, newFilm);
+          userVotedSet.add(docRef.id);
+          saveVotedSet();
+          showToast(`Pinned "${newFilm.title}" to noticeboard!`);
+          input.value = '';
+          currentTmdbMatch = null;
+          return;
+        } catch (err) {
+          console.warn("Firebase add film error:", err);
+        }
+      }
+
+      // Local storage fallback
+      const localFilm = { ...newFilm, id: 'local_' + Date.now() };
+      userVotedSet.add(localFilm.id);
+      saveVotedSet();
+      films.push(localFilm);
+      saveLocalFilms();
+      renderFilms();
+
+      showToast(`Pinned "${newFilm.title}" to noticeboard!`);
+      input.value = '';
+      currentTmdbMatch = null;
+    };
+
+    // Vote (+1) Button Handler
+    window.handleVote = async (id) => {
+      const hasVoted = userVotedSet.has(id);
+      
+      if (hasVoted) {
+        userVotedSet.delete(id);
+      } else {
+        userVotedSet.add(id);
+      }
+      saveVotedSet();
+
+      if (isFirebaseReady && db) {
+        try {
+          const filmRef = doc(db, 'artifacts', appId, 'public', 'data', 'open_event_films', id);
+          await updateDoc(filmRef, {
+            votes: increment(hasVoted ? -1 : 1)
+          });
+          return;
+        } catch (e) {
+          console.warn("Firebase vote error:", e);
+        }
+      }
+
+      const f = films.find(item => item.id === id);
+      if (f) {
+        f.votes += hasVoted ? -1 : 1;
+        saveLocalFilms();
+        renderFilms();
+      }
+    };
+
+    // Sort Mode Switching
+    window.setSortMode = (mode) => {
+      sortMode = mode;
+      const popBtn = document.getElementById('sortPopularBtn');
+      const recBtn = document.getElementById('sortRecentBtn');
+
+      if (mode === 'popular') {
+        popBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-amber-500 text-slate-950 shadow";
+        recBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-100 transition flex items-center gap-1.5";
+      } else {
+        recBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-amber-500 text-slate-950 shadow";
+        popBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-100 transition flex items-center gap-1.5";
+      }
+
+      renderFilms();
+    };
+
+    // Render Film Posters Grid
+    window.renderFilms = () => {
+      const filter = document.getElementById('filterInput').value.toLowerCase().trim();
+      const grid = document.getElementById('filmsGrid');
+      const emptyState = document.getElementById('emptyNoticeboard');
+      const countPill = document.getElementById('totalFilmsCount');
+
+      let filtered = films.filter(f => f.title.toLowerCase().includes(filter));
+
+      filtered.sort((a, b) => {
+        if (sortMode === 'popular') return b.votes - a.votes;
+        return (b.timestamp || 0) - (a.timestamp || 0);
+      });
+
+      if (countPill) countPill.innerText = `${films.length} Film${films.length === 1 ? '' : 's'}`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      } else {
+        emptyState.classList.add('hidden');
+      }
+
+      grid.innerHTML = filtered.map(film => {
+        const voted = userVotedSet.has(film.id);
+        const posterSrc = film.posterUrl ? film.posterUrl : window.generateFallbackPosterSvg(film.title);
+
+        return `
+          <div class="film-card group relative bg-cardBg rounded-2xl border border-slate-800/80 hover:border-amber-500/50 overflow-hidden flex flex-col justify-between shadow-lg">
+            
+            <!-- Poster Display -->
+            <div class="relative aspect-[2/3] w-full bg-slate-950 overflow-hidden">
+              <img src="${posterSrc}" alt="${escapeHtml(film.title)}" 
+                onerror="this.onerror=null; this.src=window.generateFallbackPosterSvg('${escapeHtml(film.title)}');"
+                class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
+              
+              <!-- Gradient Overlay -->
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-80 group-hover:opacity-60 transition"></div>
+
+              <!-- +1 Vote Button Overlay -->
+              <button onclick="handleVote('${film.id}')" 
+                class="absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl font-black text-xs transition transform active:scale-90 flex items-center gap-1.5 shadow-xl ${
+                  voted 
+                    ? 'bg-amber-500 text-slate-950 pulse-glow ring-2 ring-amber-300' 
+                    : 'bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-400 border border-amber-500/30'
+                }">
+                <i class="fa-solid ${voted ? 'fa-check' : 'fa-plus'} text-[10px]"></i>
+                <span>+1</span>
+                <span class="ml-0.5 px-1.5 py-0.2 bg-slate-950/40 rounded text-[11px]">${film.votes}</span>
+              </button>
+            </div>
+
+            <!-- Film Title Footer -->
+            <div class="p-3 bg-slate-900/90 border-t border-slate-800/80 flex items-center justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <h4 class="font-bold text-xs sm:text-sm text-slate-100 truncate leading-snug group-hover:text-amber-400 transition" title="${escapeHtml(film.title)}">
+                  ${escapeHtml(film.title)}
+                </h4>
+                ${film.year ? `<p class="text-[10px] text-slate-400 mt-0.5 font-medium">${film.year}</p>` : ''}
+              </div>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    };
+
+    // Helpers
+    function saveVotedSet() {
+      localStorage.setItem('open_event_voted_ids', JSON.stringify(Array.from(userVotedSet)));
+    }
+
+    function saveLocalFilms() {
+      localStorage.setItem('open_event_local_films', JSON.stringify(films));
+    }
+
+    function loadLocalFallback() {
+      const stored = localStorage.getItem('open_event_local_films');
+      if (stored) {
+        try {
+          films = JSON.parse(stored);
+        } catch (e) {
+          films = [];
+        }
+      } else {
+        films = [];
+      }
+      renderFilms();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      const text = document.getElementById('toastText');
+      text.innerText = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+    window.hideToast = () => document.getElementById('toastNotification').classList.add('hidden');
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      })[m]);
+    }
+
+    // Initialize Database / Firebase Firestore
+    async function initDatabase() {
+      let cfg = null;
+      if (typeof firebaseConfig !== 'undefined' && firebaseConfig && firebaseConfig.apiKey) {
+        cfg = firebaseConfig;
+      } else if (typeof window !== 'undefined' && window.firebaseConfig && window.firebaseConfig.apiKey) {
+        cfg = window.firebaseConfig;
+      }
+
+      if (cfg && cfg.apiKey) {
+        try {
+          const app = initializeApp(cfg);
+          auth = getAuth(app);
+          db = getFirestore(app);
+
+          if (typeof __initial_auth_token !== 'undefined') {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+
+          const col = collection(db, 'artifacts', appId, 'public', 'data', 'open_event_films');
+          onSnapshot(col, (snapshot) => {
+            films = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderFilms();
+          }, (err) => {
+            console.warn("Firestore live snapshot error:", err);
+            loadLocalFallback();
+          });
+
+          isFirebaseReady = true;
+          const badge = document.getElementById('syncBadge');
+          if (badge) badge.classList.remove('hidden');
+          return;
+        } catch (e) {
+          console.warn("Firebase setup failed:", e);
+        }
+      }
+      loadLocalFallback();
+    }
+
+    initDatabase();
+  </script>
+</body>
+</html>
