@@ -141,6 +141,19 @@
           <span>API Key</span>
         </button>
 
+        <!-- Admin Access Button -->
+        <button onclick="handleAdminButtonClick()" id="adminToggleBtn" title="Admin Controls" 
+          class="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-amber-400 hover:border-amber-500/50 text-xs font-bold transition flex items-center gap-1.5">
+          <i id="adminLockIcon" class="fa-solid fa-lock text-amber-500"></i>
+          <span id="adminBtnText">Admin</span>
+        </button>
+
+        <!-- Clear All Films Button (Only shown when Admin is active) -->
+        <button id="clearAllBtn" onclick="promptClearAll()" class="hidden px-3 py-1.5 rounded-xl bg-rose-950/80 border border-rose-500/50 text-rose-300 hover:bg-rose-900 text-xs font-bold transition flex items-center gap-1.5">
+          <i class="fa-solid fa-trash-can"></i>
+          <span>Clear All</span>
+        </button>
+
         <!-- Board Filter Input -->
         <div class="relative flex-1 sm:flex-none sm:w-48">
           <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
@@ -227,6 +240,74 @@
     </div>
   </div>
 
+  <!-- Admin Password Verification Modal -->
+  <div id="adminPasswordModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-amber-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Admin Access Required</span>
+        </h3>
+        <button onclick="closeAdminPasswordModal()" class="text-slate-400 hover:text-slate-100">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Enter password to unlock administrator permissions (delete films, clear noticeboard). Default password: <span class="font-mono text-amber-400 font-bold">film2026</span>
+      </p>
+
+      <form onsubmit="verifyAdminPassword(event)" class="space-y-3">
+        <input type="password" id="adminPasswordInput" placeholder="Enter admin password..." required
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500 font-mono">
+        
+        <div id="adminPassError" class="hidden text-xs text-rose-400 font-semibold flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>Incorrect password. Please try again.</span>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="closeAdminPasswordModal()" class="px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold rounded-xl">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl flex items-center gap-1.5">
+            <i class="fa-solid fa-lock-open text-xs"></i>
+            <span>Unlock Admin</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Action Confirmation Modal -->
+  <div id="deleteConfirmModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-rose-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3 text-rose-400">
+        <div class="w-10 h-10 rounded-xl bg-rose-950/80 border border-rose-500/40 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-100" id="confirmModalTitle">Confirm Action</h3>
+          <p class="text-xs text-slate-400 mt-0.5" id="confirmModalSub">This operation cannot be undone.</p>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800" id="confirmModalBody">
+        Are you sure you want to proceed?
+      </p>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeDeleteConfirmModal()" class="px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold rounded-xl">
+          Cancel
+        </button>
+        <button id="confirmDeleteActionBtn" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5">
+          <i class="fa-solid fa-trash"></i>
+          <span>Confirm Delete</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
     <div>
@@ -240,13 +321,15 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // Application state
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'as-film-studies-open-event';
     let films = [];
     let sortMode = 'popular'; // 'popular' | 'recent'
     let userVotedSet = new Set(JSON.parse(localStorage.getItem('open_event_voted_ids') || '[]'));
+    let isAdminAuthenticated = false;
+    let pendingDeleteAction = null;
     let db = null;
     let auth = null;
     let isFirebaseReady = false;
@@ -515,6 +598,14 @@
               <!-- Gradient Overlay -->
               <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-80 group-hover:opacity-60 transition"></div>
 
+              ${isAdminAuthenticated ? `
+                <!-- Admin Delete Individual Button -->
+                <button onclick="promptDeleteFilm('${film.id}')" title="Delete film from board"
+                  class="absolute top-2.5 left-2.5 w-8 h-8 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center shadow-xl transition transform active:scale-90 border border-rose-400/50">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              ` : ''}
+
               <!-- +1 Vote Button Overlay -->
               <button onclick="handleVote('${film.id}')" 
                 class="absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl font-black text-xs transition transform active:scale-90 flex items-center gap-1.5 shadow-xl ${
@@ -542,6 +633,134 @@
         `;
       }).join('');
     };
+
+    // Admin Authentication & Modal Handlers
+    window.handleAdminButtonClick = () => {
+      if (isAdminAuthenticated) {
+        // Toggle off admin mode
+        isAdminAuthenticated = false;
+        document.getElementById('adminToggleBtn').className = "px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-amber-400 hover:border-amber-500/50 text-xs font-bold transition flex items-center gap-1.5";
+        document.getElementById('adminLockIcon').className = "fa-solid fa-lock text-amber-500";
+        document.getElementById('adminBtnText').innerText = "Admin";
+        document.getElementById('clearAllBtn').classList.add('hidden');
+        renderFilms();
+        showToast("Logged out of Admin mode.");
+      } else {
+        // Open password prompt
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('adminPassError').classList.add('hidden');
+        document.getElementById('adminPasswordModal').classList.remove('hidden');
+      }
+    };
+
+    window.closeAdminPasswordModal = () => {
+      document.getElementById('adminPasswordModal').classList.add('hidden');
+    };
+
+    window.verifyAdminPassword = (e) => {
+      e.preventDefault();
+      const pwd = document.getElementById('adminPasswordInput').value.trim();
+      
+      // Default Password: film2026
+      if (pwd === 'film2026') {
+        isAdminAuthenticated = true;
+        closeAdminPasswordModal();
+        
+        document.getElementById('adminToggleBtn').className = "px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500 text-amber-400 text-xs font-bold transition flex items-center gap-1.5";
+        document.getElementById('adminLockIcon').className = "fa-solid fa-lock-open text-amber-400";
+        document.getElementById('adminBtnText').innerText = "Admin Active";
+        document.getElementById('clearAllBtn').classList.remove('hidden');
+        
+        renderFilms();
+        showToast("Admin Mode Unlocked!");
+      } else {
+        document.getElementById('adminPassError').classList.remove('hidden');
+      }
+    };
+
+    // Prompt for deleting a single film
+    window.promptDeleteFilm = (filmId) => {
+      const film = films.find(f => f.id === filmId);
+      if (!film) return;
+
+      document.getElementById('confirmModalTitle').innerText = "Delete Film";
+      document.getElementById('confirmModalSub').innerText = "Remove item from noticeboard";
+      document.getElementById('confirmModalBody').innerHTML = `Are you sure you want to delete <span class="text-amber-400 font-bold">"${escapeHtml(film.title)}"</span>?`;
+      
+      pendingDeleteAction = () => executeDeleteSingleFilm(filmId, film.title);
+      document.getElementById('deleteConfirmModal').classList.remove('hidden');
+    };
+
+    // Prompt for clearing all films
+    window.promptClearAll = () => {
+      if (films.length === 0) {
+        showToast("Noticeboard is already empty.");
+        return;
+      }
+
+      document.getElementById('confirmModalTitle').innerText = "Clear Entire Noticeboard";
+      document.getElementById('confirmModalSub').innerText = "Wipe all nominated films";
+      document.getElementById('confirmModalBody').innerHTML = `Are you sure you want to delete all <span class="text-rose-400 font-bold">${films.length} films</span> from the noticeboard? This cannot be undone.`;
+
+      pendingDeleteAction = () => executeClearAllFilms();
+      document.getElementById('deleteConfirmModal').classList.remove('hidden');
+    };
+
+    window.closeDeleteConfirmModal = () => {
+      document.getElementById('deleteConfirmModal').classList.add('hidden');
+      pendingDeleteAction = null;
+    };
+
+    document.getElementById('confirmDeleteActionBtn').addEventListener('click', async () => {
+      if (pendingDeleteAction) {
+        await pendingDeleteAction();
+      }
+      closeDeleteConfirmModal();
+    });
+
+    // Execute single film deletion
+    async function executeDeleteSingleFilm(filmId, title) {
+      if (isFirebaseReady && db) {
+        try {
+          const filmRef = doc(db, 'artifacts', appId, 'public', 'data', 'open_event_films', filmId);
+          await deleteDoc(filmRef);
+          showToast(`Deleted "${title}"`);
+          return;
+        } catch (e) {
+          console.warn("Firestore delete film error:", e);
+        }
+      }
+
+      // Local storage fallback
+      films = films.filter(f => f.id !== filmId);
+      saveLocalFilms();
+      renderFilms();
+      showToast(`Deleted "${title}"`);
+    }
+
+    // Execute clear all noticeboard films
+    async function executeClearAllFilms() {
+      if (isFirebaseReady && db) {
+        try {
+          // Delete each document in collection
+          const deletePromises = films.map(f => {
+            const filmRef = doc(db, 'artifacts', appId, 'public', 'data', 'open_event_films', f.id);
+            return deleteDoc(filmRef);
+          });
+          await Promise.all(deletePromises);
+          showToast("Cleared all films from noticeboard!");
+          return;
+        } catch (e) {
+          console.warn("Firestore clear all error:", e);
+        }
+      }
+
+      // Local storage fallback
+      films = [];
+      saveLocalFilms();
+      renderFilms();
+      showToast("Cleared all films from noticeboard!");
+    }
 
     // Modal Helpers
     window.openApiKeyModal = () => {
