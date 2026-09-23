@@ -254,7 +254,7 @@
       </div>
 
       <p class="text-xs text-slate-300 leading-relaxed">
-        Enter password to unlock administrator permissions (delete films, clear noticeboard). Default password: <span class="font-mono text-amber-400 font-bold">film2026</span>
+        Enter password to unlock administrator permissions (delete films, clear noticeboard).
       </p>
 
       <form onsubmit="verifyAdminPassword(event)" class="space-y-3">
@@ -327,7 +327,6 @@
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'as-film-studies-open-event';
     let films = [];
     let sortMode = 'popular'; // 'popular' | 'recent'
-    let userVotedSet = new Set(JSON.parse(localStorage.getItem('open_event_voted_ids') || '[]'));
     let isAdminAuthenticated = false;
     let pendingDeleteAction = null;
     let db = null;
@@ -473,11 +472,10 @@
     // Core logic to pin new film or add +1 vote if already present
     async function addOrVoteFilm(matchData) {
       // Check if film already exists on board
-      const existing = films.find(f => (matchData.tmdbId && f.tmdbId === matchData.tmdbId) || f.title.toLowerCase() === matchData.title.toLowerCase());
+      const existing = films.find(f => (matchData.tmdbId && f.tmdbId === matchData.tmdbData) || f.title.toLowerCase() === matchData.title.toLowerCase());
 
       if (existing) {
         await window.handleVote(existing.id);
-        showToast(`Added a +1 vote for "${existing.title}"!`);
         return;
       }
 
@@ -493,9 +491,7 @@
       if (isFirebaseReady && db) {
         try {
           const col = collection(db, 'artifacts', appId, 'public', 'data', 'open_event_films');
-          const docRef = await addDoc(col, newFilm);
-          userVotedSet.add(docRef.id);
-          saveVotedSet();
+          await addDoc(col, newFilm);
           showToast(`Pinned "${newFilm.title}" to noticeboard!`);
           return;
         } catch (err) {
@@ -505,31 +501,23 @@
 
       // Local storage fallback
       const localFilm = { ...newFilm, id: 'local_' + Date.now() };
-      userVotedSet.add(localFilm.id);
-      saveVotedSet();
       films.push(localFilm);
       saveLocalFilms();
       renderFilms();
       showToast(`Pinned "${newFilm.title}" to noticeboard!`);
     }
 
-    // Vote (+1) Button Handler
+    // Vote (+1) Button Handler - Increments tally count cleanly
     window.handleVote = async (id) => {
-      const hasVoted = userVotedSet.has(id);
-      
-      if (hasVoted) {
-        userVotedSet.delete(id);
-      } else {
-        userVotedSet.add(id);
-      }
-      saveVotedSet();
-
       if (isFirebaseReady && db) {
         try {
           const filmRef = doc(db, 'artifacts', appId, 'public', 'data', 'open_event_films', id);
           await updateDoc(filmRef, {
-            votes: increment(hasVoted ? -1 : 1)
+            votes: increment(1)
           });
+          const target = films.find(f => f.id === id);
+          const title = target ? target.title : 'Film';
+          showToast(`Added +1 vote for "${title}"!`);
           return;
         } catch (e) {
           console.warn("Firebase vote error:", e);
@@ -538,9 +526,10 @@
 
       const f = films.find(item => item.id === id);
       if (f) {
-        f.votes += hasVoted ? -1 : 1;
+        f.votes = (f.votes || 0) + 1;
         saveLocalFilms();
         renderFilms();
+        showToast(`Added +1 vote for "${f.title}"! Count: ${f.votes}`);
       }
     };
 
@@ -583,7 +572,6 @@
       }
 
       grid.innerHTML = filtered.map(film => {
-        const voted = userVotedSet.has(film.id);
         const posterSrc = film.posterUrl ? film.posterUrl : window.generateFallbackPosterSvg(film.title);
 
         return `
@@ -601,21 +589,17 @@
               ${isAdminAuthenticated ? `
                 <!-- Admin Delete Individual Button -->
                 <button onclick="promptDeleteFilm('${film.id}')" title="Delete film from board"
-                  class="absolute top-2.5 left-2.5 w-8 h-8 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center shadow-xl transition transform active:scale-90 border border-rose-400/50">
+                  class="absolute top-2.5 left-2.5 w-8 h-8 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center shadow-xl transition transform active:scale-90 border border-rose-400/50 z-20">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
               ` : ''}
 
               <!-- +1 Vote Button Overlay -->
-              <button onclick="handleVote('${film.id}')" 
-                class="absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl font-black text-xs transition transform active:scale-90 flex items-center gap-1.5 shadow-xl ${
-                  voted 
-                    ? 'bg-amber-500 text-slate-950 pulse-glow ring-2 ring-amber-300' 
-                    : 'bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-400 border border-amber-500/30'
-                }">
-                <i class="fa-solid ${voted ? 'fa-check' : 'fa-plus'} text-[10px]"></i>
+              <button onclick="handleVote('${film.id}')" title="Click to add +1 vote" 
+                class="absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl font-black text-xs transition transform active:scale-90 hover:scale-105 flex items-center gap-1.5 shadow-xl bg-amber-500 hover:bg-amber-400 text-slate-950 pulse-glow cursor-pointer z-20">
+                <i class="fa-solid fa-plus text-[10px]"></i>
                 <span>+1</span>
-                <span class="ml-0.5 px-1.5 py-0.2 bg-slate-950/40 rounded text-[11px]">${film.votes}</span>
+                <span class="ml-0.5 px-1.5 py-0.5 bg-slate-950/20 rounded text-[11px] font-extrabold">${film.votes || 1}</span>
               </button>
             </div>
 
@@ -661,8 +645,8 @@
       e.preventDefault();
       const pwd = document.getElementById('adminPasswordInput').value.trim();
       
-      // Default Password: film2026
-      if (pwd === 'film2026') {
+      // Accepts Film2026 or film2026
+      if (pwd.toLowerCase() === 'film2026') {
         isAdminAuthenticated = true;
         closeAdminPasswordModal();
         
