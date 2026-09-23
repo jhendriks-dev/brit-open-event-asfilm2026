@@ -182,13 +182,13 @@
   <!-- Main Noticeboard Display -->
   <main class="flex-1 max-w-[1920px] w-full mx-auto p-4 sm:p-8">
     
-    <!-- Toast Notification Banner -->
-    <div id="toastNotification" class="hidden max-w-md mx-auto mb-6 p-3 bg-emerald-950/90 border border-emerald-500/40 rounded-xl text-emerald-200 text-xs font-semibold flex items-center justify-between gap-3 shadow-xl">
-      <div class="flex items-center gap-2">
-        <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
-        <span id="toastText">Film added to noticeboard!</span>
+    <!-- Toast Notification Banner (Fixed floating overlay to prevent page layout shift) -->
+    <div id="toastNotification" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] p-3.5 bg-emerald-950/95 border-2 border-emerald-500/60 rounded-2xl text-emerald-200 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-2xl backdrop-blur-md">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-base shrink-0"></i>
+        <span id="toastText" class="truncate">Film added to noticeboard!</span>
       </div>
-      <button onclick="hideToast()" class="text-emerald-400 hover:text-emerald-100">
+      <button onclick="hideToast()" class="text-emerald-400 hover:text-emerald-100 p-1 shrink-0">
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
