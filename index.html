@@ -15,14 +15,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <script>
-    // Global fallback poster generator for missing or failed images
+    // Global fallback poster SVG generator for missing or loading images
     window.generateFallbackPosterSvg = function(title) {
       var shortTitle = (title || 'Film').substring(0, 22);
       var safeTitle = shortTitle.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450">' +
         '<rect width="300" height="450" fill="#090d16"/>' +
         '<rect x="12" y="12" width="276" height="426" fill="none" stroke="#f59e0b" stroke-width="2" rx="12" stroke-dasharray="6 6"/>' +
-        '<text x="150" y="190" font-family="sans-serif" font-size="48" fill="#f59e0b" text-anchor="middle">🎬</text>' +
+        '<text x="150" y="190" font-family="Inconsolata, monospace" font-size="48" fill="#f59e0b" text-anchor="middle">🎬</text>' +
         '<text x="150" y="250" font-family="Inconsolata, monospace" font-size="16" font-weight="bold" fill="#f8fafc" text-anchor="middle">' + safeTitle + '</text>' +
         '<text x="150" y="280" font-family="Inconsolata, monospace" font-size="12" fill="#64748b" text-anchor="middle">AS Film Studies</text>' +
       '</svg>';
@@ -82,32 +82,33 @@
 
 <body class="min-h-screen bg-filmDark text-slate-100 flex flex-col font-sans antialiased overflow-x-hidden">
 
-  <!-- Top Navigation & Banner Header -->
-  <header class="bg-slate-900/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md px-4 sm:px-8 py-4 text-center">
+  <!-- Header Banner -->
+  <header class="bg-slate-900/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md px-4 sm:px-8 py-4 text-center shadow-lg">
     <div class="max-w-[1920px] mx-auto space-y-1">
       <h1 class="text-2xl sm:text-4xl font-black tracking-widest text-amber-400 uppercase font-display">
         SHARE YOUR FAVOURITE FILMS WITH US
       </h1>
-      <p class="text-sm sm:text-base font-medium text-slate-300">
+      <p class="text-sm sm:text-base font-semibold text-slate-300">
         Type on the iPad below or head to <span class="text-amber-400 font-bold underline decoration-amber-500/50">tinyurl.com/asfilm2026</span> on your phone
       </p>
     </div>
   </header>
 
-  <!-- Main Search / Add Film Bar -->
-  <div class="bg-slate-900/70 border-b border-slate-800/60 backdrop-blur py-4 px-4 sm:px-8 sticky top-[65px] z-30 shadow-xl">
+  <!-- Search & Add Toolbar -->
+  <div class="bg-slate-900/70 border-b border-slate-800/60 backdrop-blur py-4 px-4 sm:px-8 sticky top-[69px] z-30 shadow-xl">
     <div class="max-w-[1920px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
       
-      <!-- Search & Add Input Box -->
-      <form id="addFilmForm" onsubmit="handleFormSubmit(event)" class="w-full lg:max-w-3xl relative">
-        <div class="relative flex items-center">
+      <!-- Film Search Box & Live Dropdown -->
+      <div class="w-full lg:max-w-3xl relative">
+        <form id="addFilmForm" onsubmit="handleFormSubmit(event)" class="relative flex items-center">
           <div class="absolute left-4 text-amber-400 text-lg pointer-events-none">
             <i class="fa-solid fa-magnifying-glass"></i>
           </div>
           
           <input type="text" id="filmTitleInput" required autocomplete="off"
-            placeholder="Type your favourite film title here (e.g. Inception, Spirited Away, Pulp Fiction)..." 
+            placeholder="Type your favourite film title (e.g. Inception, Spirited Away, Pulp Fiction)..." 
             oninput="debouncedTmdbSearch()"
+            onfocus="debouncedTmdbSearch()"
             class="w-full bg-slate-950 border-2 border-slate-800 focus:border-amber-500 rounded-2xl pl-12 pr-32 py-3.5 text-sm sm:text-base font-medium text-slate-100 placeholder-slate-500 focus:outline-none transition shadow-inner">
 
           <!-- Submit Button -->
@@ -116,36 +117,32 @@
             <i class="fa-solid fa-plus text-xs"></i>
             <span>Add Film</span>
           </button>
-        </div>
+        </form>
 
-        <!-- TMDB Live Preview Card Overlay -->
-        <div id="tmdbPreviewModal" class="hidden absolute left-0 right-0 top-full mt-2 bg-slate-900 border-2 border-amber-500/50 rounded-2xl p-3 shadow-2xl z-50 backdrop-blur-xl">
-          <div class="flex items-center gap-4">
-            <img id="tmdbPreviewPoster" src="" alt="Poster" 
-              onerror="this.onerror=null; this.src=window.generateFallbackPosterSvg('Film');"
-              class="w-12 h-18 object-cover rounded-lg bg-slate-950 shrink-0 border border-slate-800">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">
-                  TMDB Match
-                </span>
-                <span id="tmdbPreviewYear" class="text-xs text-slate-400"></span>
-              </div>
-              <h4 id="tmdbPreviewTitle" class="text-sm font-bold text-slate-100 truncate mt-0.5"></h4>
-              <p id="tmdbPreviewOverview" class="text-xs text-slate-400 line-clamp-1 mt-0.5"></p>
-            </div>
-            <button type="submit" class="px-4 py-2 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl hover:bg-amber-400 shrink-0">
-              Confirm & Pin
-            </button>
-          </div>
+        <!-- TMDB Live Suggestions Dropdown Menu -->
+        <div id="suggestionsDropdown" class="hidden absolute left-0 right-0 top-full mt-2 bg-slate-900/95 border-2 border-amber-500/60 rounded-2xl p-2 shadow-2xl z-50 backdrop-blur-xl max-h-[380px] overflow-y-auto space-y-1">
+          <!-- Dynamically populated suggestions -->
         </div>
-      </form>
+      </div>
 
-      <!-- Sorting Controls & Search Filter -->
+      <!-- Controls & Status -->
       <div class="w-full lg:w-auto flex items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
         
-        <!-- Quick Filter Input -->
-        <div class="relative flex-1 sm:flex-none sm:w-56">
+        <!-- Live Cloud Sync Indicator -->
+        <div id="syncBadge" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 text-xs font-bold">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>Live Sync</span>
+        </div>
+
+        <!-- TMDB Key Settings Button -->
+        <button onclick="openApiKeyModal()" title="Configure TMDB API Key" 
+          class="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-amber-400 hover:border-amber-500/50 text-xs font-bold transition flex items-center gap-1.5">
+          <i class="fa-solid fa-key text-amber-500"></i>
+          <span>API Key</span>
+        </button>
+
+        <!-- Board Filter Input -->
+        <div class="relative flex-1 sm:flex-none sm:w-48">
           <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
           <input type="text" id="filterInput" oninput="renderFilms()" placeholder="Filter board..." 
             class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
@@ -156,12 +153,12 @@
           <button id="sortPopularBtn" onclick="setSortMode('popular')" 
             class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-amber-500 text-slate-950 shadow">
             <i class="fa-solid fa-fire text-xs"></i>
-            <span>Most Popular</span>
+            <span>Popular</span>
           </button>
           <button id="sortRecentBtn" onclick="setSortMode('recent')" 
             class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-100 transition flex items-center gap-1.5">
             <i class="fa-solid fa-clock text-xs"></i>
-            <span>Most Recent</span>
+            <span>Recent</span>
           </button>
         </div>
 
@@ -169,7 +166,7 @@
     </div>
   </div>
 
-  <!-- Main Noticeboard Area (Fills Widescreen) -->
+  <!-- Main Noticeboard Display -->
   <main class="flex-1 max-w-[1920px] w-full mx-auto p-4 sm:p-8">
     
     <!-- Toast Notification Banner -->
@@ -183,7 +180,7 @@
       </button>
     </div>
 
-    <!-- Empty State Box -->
+    <!-- Empty State Message -->
     <div id="emptyNoticeboard" class="hidden py-24 text-center max-w-lg mx-auto space-y-4">
       <div class="w-20 h-20 mx-auto rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-500 text-3xl">
         <i class="fa-solid fa-film"></i>
@@ -192,12 +189,43 @@
       <p class="text-sm text-slate-400">Be the first to share your favourite film using the search bar at the top!</p>
     </div>
 
-    <!-- Widescreen Noticeboard Film Posters Grid -->
+    <!-- Widescreen Film Posters Grid -->
     <div id="filmsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-4 sm:gap-6 items-start">
       <!-- Film Poster Cards populated dynamically via JS -->
     </div>
 
   </main>
+
+  <!-- TMDB API Key Settings Modal -->
+  <div id="apiKeyModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+          <i class="fa-solid fa-key"></i>
+          <span>TMDB API Key Settings</span>
+        </h3>
+        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-100">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        To fetch live movie posters across all devices, enter a TMDB v3 API Key below. This key will be saved locally on this machine.
+      </p>
+
+      <input type="text" id="tmdbKeyInput" placeholder="Paste TMDB v3 API Key here..."
+        class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500 font-mono">
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeApiKeyModal()" class="px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold rounded-xl">
+          Cancel
+        </button>
+        <button onclick="saveApiKey()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Footer -->
   <footer class="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
@@ -205,7 +233,7 @@
       <span class="font-bold text-slate-400">AS Film Studies</span> Open Event Interactive Board
     </div>
     <div class="text-[11px] text-slate-600">
-      Data powered by TMDB API • Multi-device live vote sync
+      Multi-device live sync powered by TMDB API & Firebase
     </div>
   </footer>
 
@@ -223,78 +251,131 @@
     let auth = null;
     let isFirebaseReady = false;
     let debounceTimer = null;
-    let currentTmdbMatch = null;
+    let currentSuggestions = [];
 
-    // TMDB Lookup API Key
-    const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2192313';
+    // Default Fallback TMDB API Keys
+    const DEFAULT_TMDB_KEYS = [
+      '15d2ea6d0dc1d476efbca3eba2192313',
+      '7e23cee5bfb742e781fccc26b9e9009f',
+      'b6dba21fefcead3510c8ddf58eb57d43'
+    ];
 
-    // Search TMDB API
-    async function fetchTmdbMovie(query) {
-      if (!query || query.trim().length < 2) return null;
+    function getTmdbApiKey() {
+      const stored = localStorage.getItem('custom_tmdb_api_key');
+      return stored ? stored.trim() : DEFAULT_TMDB_KEYS[0];
+    }
+
+    // Search TMDB API for multiple matching movies
+    async function fetchTmdbMovies(query) {
+      if (!query || query.trim().length < 2) return [];
+      const apiKey = getTmdbApiKey();
+
       try {
-        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&include_adult=false`);
-        if (!res.ok) return null;
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-          const m = data.results[0];
-          const year = m.release_date ? m.release_date.substring(0, 4) : '';
-          return {
-            title: m.title,
-            year: year,
-            tmdbId: m.id,
-            overview: m.overview || '',
-            posterUrl: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : null
-          };
+        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&include_adult=false`);
+        if (!res.ok) {
+          // Retry with alternative fallback key if 401 Unauthorized
+          if (res.status === 401 && DEFAULT_TMDB_KEYS[1]) {
+            const fallbackRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${DEFAULT_TMDB_KEYS[1]}&query=${encodeURIComponent(query)}&include_adult=false`);
+            if (fallbackRes.ok) {
+              const fbData = await fallbackRes.json();
+              return parseTmdbResults(fbData.results);
+            }
+          }
+          return [];
         }
+        const data = await res.json();
+        return parseTmdbResults(data.results);
       } catch (e) {
         console.warn("TMDB fetch error:", e);
       }
-      return null;
+      return [];
     }
 
-    // Debounced Search Input Handler
+    function parseTmdbResults(results) {
+      if (!results || !Array.isArray(results)) return [];
+      return results.slice(0, 6).map(m => ({
+        title: m.title,
+        year: m.release_date ? m.release_date.substring(0, 4) : '',
+        tmdbId: m.id,
+        overview: m.overview || '',
+        posterUrl: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : null
+      }));
+    }
+
+    // Debounced Search Input Handler to display rich autocomplete list
     window.debouncedTmdbSearch = () => {
       clearTimeout(debounceTimer);
       const val = document.getElementById('filmTitleInput').value.trim();
-      const modal = document.getElementById('tmdbPreviewModal');
+      const dropdown = document.getElementById('suggestionsDropdown');
 
       if (val.length < 2) {
-        modal.classList.add('hidden');
-        currentTmdbMatch = null;
+        dropdown.classList.add('hidden');
+        currentSuggestions = [];
         return;
       }
 
       debounceTimer = setTimeout(async () => {
-        const match = await fetchTmdbMovie(val);
-        if (match) {
-          currentTmdbMatch = match;
-          document.getElementById('tmdbPreviewTitle').innerText = match.title;
-          document.getElementById('tmdbPreviewYear').innerText = match.year ? `(${match.year})` : '';
-          document.getElementById('tmdbPreviewOverview').innerText = match.overview;
-          
-          const img = document.getElementById('tmdbPreviewPoster');
-          img.src = match.posterUrl || window.generateFallbackPosterSvg(match.title);
-          
-          modal.classList.remove('hidden');
+        const matches = await fetchTmdbMovies(val);
+        currentSuggestions = matches;
+
+        if (matches.length > 0) {
+          dropdown.innerHTML = matches.map((m, idx) => `
+            <div onclick="selectSuggestion(${idx})" 
+              class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/90 cursor-pointer transition group">
+              <img src="${m.posterUrl || window.generateFallbackPosterSvg(m.title)}" alt="${escapeHtml(m.title)}" 
+                onerror="this.onerror=null; this.src=window.generateFallbackPosterSvg('${escapeHtml(m.title)}');"
+                class="w-10 h-14 object-cover rounded-lg bg-slate-950 shrink-0 border border-slate-800 group-hover:border-amber-500/50">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs sm:text-sm font-bold text-slate-100 truncate group-hover:text-amber-400 transition">${escapeHtml(m.title)}</h4>
+                  ${m.year ? `<span class="text-[11px] font-semibold text-slate-400">(${m.year})</span>` : ''}
+                </div>
+                <p class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">${escapeHtml(m.overview || 'Click to pin this film to noticeboard')}</p>
+              </div>
+              <span class="px-2.5 py-1 bg-amber-500/20 text-amber-400 text-[11px] font-bold rounded-lg group-hover:bg-amber-500 group-hover:text-slate-950 transition">
+                + Pin
+              </span>
+            </div>
+          `).join('');
+          dropdown.classList.remove('hidden');
         } else {
-          modal.classList.add('hidden');
-          currentTmdbMatch = null;
+          dropdown.classList.add('hidden');
         }
-      }, 300);
+      }, 250);
     };
 
-    // Form Submission (Add or Vote)
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      const dropdown = document.getElementById('suggestionsDropdown');
+      const input = document.getElementById('filmTitleInput');
+      if (dropdown && !dropdown.contains(e.target) && e.target !== input) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    // Pin Selected Suggestion directly
+    window.selectSuggestion = async (index) => {
+      const match = currentSuggestions[index];
+      if (!match) return;
+
+      document.getElementById('suggestionsDropdown').classList.add('hidden');
+      document.getElementById('filmTitleInput').value = '';
+      await addOrVoteFilm(match);
+    };
+
+    // Form Submit Fallback
     window.handleFormSubmit = async (e) => {
       e.preventDefault();
       const input = document.getElementById('filmTitleInput');
       const rawText = input.value.trim();
       if (!rawText) return;
 
-      document.getElementById('tmdbPreviewModal').classList.add('hidden');
+      document.getElementById('suggestionsDropdown').classList.add('hidden');
 
-      let matchData = currentTmdbMatch;
+      let matchData = currentSuggestions.length > 0 ? currentSuggestions[0] : null;
       if (!matchData) {
-        matchData = await fetchTmdbMovie(rawText) || {
+        const fetched = await fetchTmdbMovies(rawText);
+        matchData = fetched.length > 0 ? fetched[0] : {
           title: rawText,
           year: '',
           tmdbId: null,
@@ -302,19 +383,21 @@
         };
       }
 
+      input.value = '';
+      await addOrVoteFilm(matchData);
+    };
+
+    // Core logic to pin new film or add +1 vote if already present
+    async function addOrVoteFilm(matchData) {
       // Check if film already exists on board
       const existing = films.find(f => (matchData.tmdbId && f.tmdbId === matchData.tmdbId) || f.title.toLowerCase() === matchData.title.toLowerCase());
 
       if (existing) {
-        // Vote for existing film
         await window.handleVote(existing.id);
         showToast(`Added a +1 vote for "${existing.title}"!`);
-        input.value = '';
-        currentTmdbMatch = null;
         return;
       }
 
-      // Create new film document
       const newFilm = {
         title: matchData.title,
         year: matchData.year || '',
@@ -331,8 +414,6 @@
           userVotedSet.add(docRef.id);
           saveVotedSet();
           showToast(`Pinned "${newFilm.title}" to noticeboard!`);
-          input.value = '';
-          currentTmdbMatch = null;
           return;
         } catch (err) {
           console.warn("Firebase add film error:", err);
@@ -346,11 +427,8 @@
       films.push(localFilm);
       saveLocalFilms();
       renderFilms();
-
       showToast(`Pinned "${newFilm.title}" to noticeboard!`);
-      input.value = '';
-      currentTmdbMatch = null;
-    };
+    }
 
     // Vote (+1) Button Handler
     window.handleVote = async (id) => {
@@ -405,7 +483,6 @@
       const filter = document.getElementById('filterInput').value.toLowerCase().trim();
       const grid = document.getElementById('filmsGrid');
       const emptyState = document.getElementById('emptyNoticeboard');
-      const countPill = document.getElementById('totalFilmsCount');
 
       let filtered = films.filter(f => f.title.toLowerCase().includes(filter));
 
@@ -413,8 +490,6 @@
         if (sortMode === 'popular') return b.votes - a.votes;
         return (b.timestamp || 0) - (a.timestamp || 0);
       });
-
-      if (countPill) countPill.innerText = `${films.length} Film${films.length === 1 ? '' : 's'}`;
 
       if (filtered.length === 0) {
         grid.innerHTML = '';
@@ -468,7 +543,24 @@
       }).join('');
     };
 
-    // Helpers
+    // Modal Helpers
+    window.openApiKeyModal = () => {
+      document.getElementById('tmdbKeyInput').value = localStorage.getItem('custom_tmdb_api_key') || '';
+      document.getElementById('apiKeyModal').classList.remove('hidden');
+    };
+    window.closeApiKeyModal = () => document.getElementById('apiKeyModal').classList.add('hidden');
+    window.saveApiKey = () => {
+      const val = document.getElementById('tmdbKeyInput').value.trim();
+      if (val) {
+        localStorage.setItem('custom_tmdb_api_key', val);
+        showToast("API Key saved successfully!");
+      } else {
+        localStorage.removeItem('custom_tmdb_api_key');
+        showToast("Reset to default API keys.");
+      }
+      closeApiKeyModal();
+    };
+
     function saveVotedSet() {
       localStorage.setItem('open_event_voted_ids', JSON.stringify(Array.from(userVotedSet)));
     }
@@ -539,7 +631,10 @@
 
           isFirebaseReady = true;
           const badge = document.getElementById('syncBadge');
-          if (badge) badge.classList.remove('hidden');
+          if (badge) {
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+          }
           return;
         } catch (e) {
           console.warn("Firebase setup failed:", e);
