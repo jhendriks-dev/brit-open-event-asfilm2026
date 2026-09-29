@@ -335,42 +335,52 @@
     let debounceTimer = null;
     let currentSuggestions = [];
 
-    // Default Fallback TMDB API Keys
+    // Default Fallback TMDB API Keys & Read Access Tokens
     const DEFAULT_TMDB_KEYS = [
       '15d2ea6d0dc1d476efbca3eba2192313',
       '7e23cee5bfb742e781fccc26b9e9009f',
       'b6dba21fefcead3510c8ddf58eb57d43'
     ];
 
-    function getTmdbApiKey(5cf13c7ac95b50d0de48b63aacbc6a04) {
+    function getTmdbApiKey() {
       const stored = localStorage.getItem('custom_tmdb_api_key');
       return stored ? stored.trim() : DEFAULT_TMDB_KEYS[0];
     }
 
-    // Search TMDB API for multiple matching movies
+    // Helper to query TMDB endpoint supporting both v3 API Keys and v4 Bearer Read Access Tokens
+    async function queryTmdbApi(endpoint, keyOrToken) {
+      let url = `https://api.themoviedb.org/3/${endpoint}`;
+      let headers = { 'accept': 'application/json' };
+
+      if (keyOrToken.startsWith('eyJ')) {
+        headers['Authorization'] = `Bearer ${keyOrToken}`;
+      } else {
+        url += (url.includes('?') ? '&' : '?') + `api_key=${keyOrToken}`;
+      }
+
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error(`TMDB HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    // Search TMDB API for multiple matching movies with automatic key fallback rotation
     async function fetchTmdbMovies(query) {
       if (!query || query.trim().length < 2) return [];
-      const apiKey = getTmdbApiKey();
+      
+      const userKey = getTmdbApiKey();
+      const keysToTry = [userKey, ...DEFAULT_TMDB_KEYS].filter((k, i, self) => k && self.indexOf(k) === i);
 
-      try {
-        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&include_adult=false`);
-        if (!res.ok) {
-          // Retry with alternative fallback key if 401 Unauthorized
-          if (res.status === 401 && DEFAULT_TMDB_KEYS[1]) {
-            const fallbackRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${DEFAULT_TMDB_KEYS[1]}&query=${encodeURIComponent(query)}&include_adult=false`);
-            if (fallbackRes.ok) {
-              const fbData = await fallbackRes.json();
-              return parseTmdbResults(fbData.results);
-            }
+      for (const key of keysToTry) {
+        try {
+          const data = await queryTmdbApi(`search/movie?query=${encodeURIComponent(query)}&include_adult=false`, key);
+          if (data && data.results) {
+            return parseTmdbResults(data.results);
           }
-          return [];
+        } catch (e) {
+          console.warn("TMDB fetch attempt failed with key:", key, e);
         }
-        const data = await res.json();
-        return parseTmdbResults(data.results);
-      } catch (e) {
-        console.warn("TMDB fetch error:", e);
       }
-      return [];
+      return null; // Signals connection or key error
     }
 
     function parseTmdbResults(results) {
@@ -398,6 +408,25 @@
 
       debounceTimer = setTimeout(async () => {
         const matches = await fetchTmdbMovies(val);
+
+        if (matches === null) {
+          // Key error or API connection failure
+          currentSuggestions = [];
+          dropdown.innerHTML = `
+            <div class="p-3 text-center space-y-2">
+              <p class="text-xs text-amber-400 font-bold flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>TMDB API Connection Issue</span>
+              </p>
+              <p class="text-[11px] text-slate-400 leading-tight">
+                Click <span class="text-amber-400 font-bold">API Key</span> above to check your key, or press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-slate-200">Enter</kbd> to pin "${escapeHtml(val)}" directly.
+              </p>
+            </div>
+          `;
+          dropdown.classList.remove('hidden');
+          return;
+        }
+
         currentSuggestions = matches;
 
         if (matches.length > 0) {
@@ -421,7 +450,12 @@
           `).join('');
           dropdown.classList.remove('hidden');
         } else {
-          dropdown.classList.add('hidden');
+          dropdown.innerHTML = `
+            <div class="p-3 text-center">
+              <p class="text-xs text-slate-400">No matching films found on TMDB. Press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-slate-200">Enter</kbd> or click <b>Add Film</b> to pin "${escapeHtml(val)}" to the board.</p>
+            </div>
+          `;
+          dropdown.classList.remove('hidden');
         }
       }, 250);
     };
