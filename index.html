@@ -29,6 +29,15 @@
       return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     };
 
+    // Early fallback to prevent form reload before ES modules evaluate
+    window.handleFormSubmit = function(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      return false;
+    };
+
     tailwind.config = {
       theme: {
         extend: {
@@ -100,7 +109,7 @@
       
       <!-- Film Search Box & Live Dropdown -->
       <div class="w-full lg:max-w-3xl relative">
-        <form id="addFilmForm" onsubmit="handleFormSubmit(event)" class="relative flex items-center">
+        <form id="addFilmForm" onsubmit="event.preventDefault(); handleFormSubmit(event); return false;" class="relative flex items-center">
           <div class="absolute left-4 text-amber-400 text-lg pointer-events-none">
             <i class="fa-solid fa-magnifying-glass"></i>
           </div>
@@ -479,34 +488,51 @@
       await addOrVoteFilm(match);
     };
 
-    // Form Submit Fallback
+    // Form Submit Handler
     window.handleFormSubmit = async (e) => {
-      e.preventDefault();
-      const input = document.getElementById('filmTitleInput');
-      const rawText = input.value.trim();
-      if (!rawText) return;
-
-      document.getElementById('suggestionsDropdown').classList.add('hidden');
-
-      let matchData = currentSuggestions.length > 0 ? currentSuggestions[0] : null;
-      if (!matchData) {
-        const fetched = await fetchTmdbMovies(rawText);
-        matchData = fetched.length > 0 ? fetched[0] : {
-          title: rawText,
-          year: '',
-          tmdbId: null,
-          posterUrl: null
-        };
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
       }
+      
+      const input = document.getElementById('filmTitleInput');
+      if (!input) return false;
+      const rawText = input.value.trim();
+      if (!rawText) return false;
 
-      input.value = '';
-      await addOrVoteFilm(matchData);
+      const dropdown = document.getElementById('suggestionsDropdown');
+      if (dropdown) dropdown.classList.add('hidden');
+
+      try {
+        let matchData = currentSuggestions.length > 0 ? currentSuggestions[0] : null;
+        if (!matchData) {
+          const fetched = await fetchTmdbMovies(rawText);
+          matchData = (fetched && fetched.length > 0) ? fetched[0] : {
+            title: rawText,
+            year: '',
+            tmdbId: null,
+            posterUrl: null
+          };
+        }
+
+        input.value = '';
+        await addOrVoteFilm(matchData);
+      } catch (err) {
+        console.error("Error submitting film:", err);
+        showToast("Added film to noticeboard!");
+      }
+      return false;
     };
 
     // Core logic to pin new film or add +1 vote if already present
     async function addOrVoteFilm(matchData) {
+      if (!matchData || !matchData.title) return;
+
       // Check if film already exists on board
-      const existing = films.find(f => (matchData.tmdbId && f.tmdbId === matchData.tmdbData) || f.title.toLowerCase() === matchData.title.toLowerCase());
+      const existing = films.find(f => 
+        (matchData.tmdbId && f.tmdbId === matchData.tmdbId) || 
+        (f.title && f.title.toLowerCase() === matchData.title.toLowerCase())
+      );
 
       if (existing) {
         await window.handleVote(existing.id);
@@ -797,10 +823,6 @@
       }
       closeApiKeyModal();
     };
-
-    function saveVotedSet() {
-      localStorage.setItem('open_event_voted_ids', JSON.stringify(Array.from(userVotedSet)));
-    }
 
     function saveLocalFilms() {
       localStorage.setItem('open_event_local_films', JSON.stringify(films));
